@@ -1,0 +1,27 @@
+{
+  "name": "shoutlog",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@aws-cdk/aws-apigatewayv2-alpha": "^2.38.1-alpha.0",
+    "@aws-cdk/aws-apigatewayv2-integrations-alpha": "^2.38.1-alpha.0",
+    "@functionless/ast-reflection": "^0.1.5",
+    "@swc/cli": "^0.1.57",
+    "@swc/core": "^1.2.218",
+    "@swc/register": "^0.1.10",
+    "@types/aws-lambda": "^8.10.102",
+    "aws-cdk": "^2.38.1",
+    "aws-cdk-lib": "^2.38.1",
+    "aws4-axios": "^2.4.9",
+    "axios": "^0.27.2",
+    "functionless": "^0.21.15",
+    "typescript": "^4.7.4"
+  }
+}

@@ -1,0 +1,30 @@
+{
+    "jsc": {
+      "parser": {
+        "syntax": "typescript",
+        "dynamicImport": false,
+        "decorators": false,
+        "hidden": {
+          "jest": true
+        }
+      },
+      "transform": null,
+      "target": "es2021",
+      "loose": false,
+      "externalHelpers": false,
+      "experimental": {
+        "plugins": [
+          [
+            // make sure to configure the ast-reflection plugin or else Functionless will not work
+            "@functionless/ast-reflection",
+            {}
+          ]
+        ]
+      }
+    },
+    "minify": false,
+    "sourceMaps": "inline",
+    "module": {
+      "type": "commonjs"
+    }
+  }
