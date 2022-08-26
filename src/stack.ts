@@ -6,6 +6,7 @@ import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
 import { StepFunctionsIntegration } from "aws-cdk-lib/aws-apigateway";
 import { ConnectionClient } from "./connection";
 import { BillingMode } from "aws-cdk-lib/aws-dynamodb";
+import { InvokeApi } from "./aws";
 
 interface Connection {
   pk: "connection";
@@ -106,53 +107,43 @@ export class ShoutLogTenantStack extends Stack {
 
     const logResource = api.root.addResource("log");
 
+    const handlePostLog = new ExpressStepFunction(
+      this,
+      "HandlePostLog",
+      async (event: { body: { message: string } }) => {
+        const connections = await $AWS.DynamoDB.Query({
+          Table: table,
+          KeyConditionExpression: "#pk = :pk",
+          ExpressionAttributeNames: {
+            "#pk": "pk",
+          },
+          ExpressionAttributeValues: {
+            ":pk": { S: "connection" },
+          },
+        });
+
+        if (connections.Items == null) {
+          return;
+        }
+
+        for (const item of connections.Items) {
+          await InvokeApi({
+            ApiEndpoint: `${socketApi.apiId}.execute-api.us-east-1.amazonaws.com`,
+            Stage: "prod",
+            AuthType: "IAM_ROLE",
+            Method: "POST",
+            Path: `@connections/${item.connectionId.S}`,
+            RequestBody: event.body.message,
+          });
+        }
+      }
+    );
+
+    socketApi.grantManageConnections(handlePostLog.resource);
+
     logResource.addMethod(
       "POST",
-      StepFunctionsIntegration.startExecution(
-        new ExpressStepFunction(
-          this,
-          "HandlePostLog",
-          async (event: { body: { message: string } }) => {
-            const connections = await $AWS.DynamoDB.Query({
-              Table: table,
-              KeyConditionExpression: "#pk = :pk",
-              ExpressionAttributeNames: {
-                "#pk": "pk",
-              },
-              ExpressionAttributeValues: {
-                ":pk": { S: "connection" },
-              },
-            });
-
-            if (connections.Items == null) {
-              return;
-            }
-
-            for (const item of connections.Items) {
-              sendToConnection({
-                url: item.connectionUrl.S,
-                message: event.body.message,
-              });
-              // Not working:
-              // Resource handler returned message: "Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: The resource provided arn:aws:states:::aws-sdk:apigatewaymanagementapi:postToConnection is not recognized. The value is not a va
-              // lid resource ARN, or the resource is not available in this region. at /States/1__$AWS.SDK.ApiGatewayManagementApi.postToConnection({ConnectionId: item.co/Resource' (Service: AWSStepFunctions; Status Code: 400; Error Code: Inv
-              // alidDefinition; Request ID: 82f4c85c-9448-421c-bca4-a953d97413cf; Proxy: null)" (RequestToken: fef30460-838b-8321-a869-ebadee0ff2ab, HandlerErrorCode: InvalidRequest)
-              // $AWS.SDK.ApiGatewayManagementApi.postToConnection(
-              //   {
-              //     ConnectionId: item.connectionId.S,
-              //     Data: event.body.message,
-              //   },
-              //   {
-              //     iam: {
-              //       actions: ["execute-api:ManageConnections"],
-              //       resources: ["*"],
-              //     },
-              //   }
-              // );
-            }
-          }
-        ).resource
-      )
+      StepFunctionsIntegration.startExecution(handlePostLog.resource)
     );
   }
 }
