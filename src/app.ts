@@ -1,4 +1,4 @@
-import { App, Stack } from "aws-cdk-lib";
+import { App } from "aws-cdk-lib";
 import { ShoutLogTenantStack } from "./stack";
 
 const app = new App();

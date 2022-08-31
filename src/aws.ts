@@ -1,25 +1,19 @@
-import { WebSocketApi } from "@aws-cdk/aws-apigatewayv2-alpha";
 import {
   ASLGraph,
   ErrorCodes,
   isObjectLiteralExpr,
-  isPropAssignExpr,
   SynthError,
 } from "functionless";
 import { makeIntegration } from "functionless/lib/integration";
 
-export const InvokeApi = makeIntegration<
-  "$AWS.API.Invoke",
+export const Task = makeIntegration<
+  "$AWS.Sfn.Task",
   (input: {
-    ApiEndpoint: string;
-    Method: string;
-    Stage: string;
-    Path: string;
-    AuthType: string;
-    RequestBody: any;
+    Resource: string;
+    Parameters: Record<string, unknown>;
   }) => Promise<any>
 >({
-  kind: "$AWS.API.Invoke",
+  kind: "$AWS.Sfn.Task",
   asl(call, context) {
     const input = call.args[0].expr.as(isObjectLiteralExpr);
     if (!input) throw new Error("Invalid input");
@@ -35,13 +29,30 @@ export const InvokeApi = makeIntegration<
 
       return context.stateWithHeapOutput({
         Type: "Task",
-        Resource: "arn:aws:states:::apigateway:invoke",
-        Parameters: {
-          ...output.value,
-        },
         Next: ASLGraph.DeferNext,
+        ...(output.value as any),
       });
     });
+  },
+});
+
+// Usage:
+
+Task({
+  Resource: "arn:aws:states:::apigateway:invoke",
+  Parameters: {
+    ApiEndpoint: "example.execute-api.us-east-1.amazonaws.com",
+    Method: "GET",
+    Headers: {
+      key: ["value1", "value2"],
+    },
+    Stage: "prod",
+    Path: "bills",
+    QueryParameters: {
+      billId: ["123456"],
+    },
+    RequestBody: {},
+    AuthType: "NO_AUTH",
   },
 });
 

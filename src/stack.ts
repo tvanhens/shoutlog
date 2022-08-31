@@ -1,12 +1,17 @@
-import { $AWS, ExpressStepFunction, Function, Table } from "functionless";
-import { App, Stack, aws_apigateway, aws_dynamodb } from "aws-cdk-lib";
+import { $AWS, StepFunction, Function, Table } from "functionless";
+import {
+  App,
+  Stack,
+  aws_apigateway,
+  aws_dynamodb,
+  assertions,
+} from "aws-cdk-lib";
 import { WebSocketApi, WebSocketStage } from "@aws-cdk/aws-apigatewayv2-alpha";
 import { WebSocketLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
 import { APIGatewayProxyWebsocketEventV2 } from "aws-lambda";
 import { StepFunctionsIntegration } from "aws-cdk-lib/aws-apigateway";
 import { ConnectionClient } from "./connection";
 import { BillingMode } from "aws-cdk-lib/aws-dynamodb";
-import { InvokeApi } from "./aws";
 
 interface Connection {
   pk: "connection";
@@ -107,10 +112,25 @@ export class ShoutLogTenantStack extends Stack {
 
     const logResource = api.root.addResource("log");
 
-    const handlePostLog = new ExpressStepFunction(
+    const handlePostLog = new StepFunction(
       this,
       "HandlePostLog",
-      async (event: { body: { message: string } }) => {
+      async (event: { body: { message: string; tenantId: string } }) => {
+        await $AWS.DynamoDB.Query({
+          Table: table,
+          KeyConditionExpression: "#name2 = :val2",
+          FilterExpression: "#name1 = :val1 and #name3 = :val3",
+          ExpressionAttributeNames: {
+            "#name1": "type",
+            "#name2": "pk",
+            "#name3": "version",
+          },
+          ExpressionAttributeValues: {
+            ":val1": { S: "connection" },
+            ":val2": { S: `connection|${event.body.tenantId}` },
+            ":val3": { S: "1" },
+          },
+        });
         const connections = await $AWS.DynamoDB.Query({
           Table: table,
           KeyConditionExpression: "#pk = :pk",
@@ -126,7 +146,10 @@ export class ShoutLogTenantStack extends Stack {
           return;
         }
 
+        $AWS.SDK.ApiGatewayManagementApi.
+
         for (const item of connections.Items) {
+          
           await InvokeApi({
             ApiEndpoint: `${socketApi.apiId}.execute-api.us-east-1.amazonaws.com`,
             Stage: "prod",
